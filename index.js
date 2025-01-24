@@ -6,7 +6,10 @@ const sequelize = require('./config/database');
 const bcrypt = require('bcryptjs');
 const User = require('./models/User');
 const { generateToken, comparePasswords } = require('./auth');
+const { authenticateUser } = require('./middleware/authMiddleware');
+
 require('dotenv').config();
+
 
 
 
@@ -71,43 +74,60 @@ app.post('/login', async (req, res) => {
   
 
 
-app.get('/', (req, res) => {
+// Post / categories
+
+app.post('/categories', authenticateUser, async (req, res) => {
+    try {
+      const { name } = req.body;
+  
+      if (!name) {
+        return res.status(400).json({ error: 'Category name is required' });
+      }
+  
+      const category = await Category.create({ name, userId: req.user.id });  
+      res.status(201).json(category);
+    } catch (error) {
+      res.status(500).json({ error: 'An error occurred while creating the category.' });
+    }
+  });
+  
+
+
+  app.get('/', (req, res) => {
   res.send('Welcome to the Task Manager API!');
 });
 
 
-app.post('/categories', async (req, res) => {
-  try {
-    const { name } = req.body;
-    if (!name) {
-      return res.status(400).json({ error: 'Category name is required' });
+app.post('/categories', authenticateUser, async (req, res) => {
+    try {
+      const { name } = req.body;
+  
+      if (!name) {
+        return res.status(400).json({ error: 'Category name is required' });
+      }
+  
+      const category = await Category.create({ name, userId: req.user.id });  
+      res.status(201).json(category);
+    } catch (error) {
+      res.status(500).json({ error: 'An error occurred while creating the category.' });
     }
-
-    const category = await Category.create({ name });
-    res.status(201).json(category);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'An error occurred while creating the category.' });
-  }
-});
-
-
-app.post('/tasks', async (req, res) => {
-  try {
-    const { title, description, categoryId } = req.body;
-    
-    const category = await Category.findByPk(categoryId);
-    if (!category) {
-      return res.status(400).json({ error: 'Invalid category ID' });
+  });
+  
+  app.post('/tasks', authenticateUser, async (req, res) => {
+    try {
+      const { title, description, categoryId } = req.body;
+  
+      const category = await Category.findOne({ where: { id: categoryId, userId: req.user.id } });
+      if (!category) {
+        return res.status(400).json({ error: 'Invalid category ID or unauthorized access' });
+      }
+  
+      const task = await Task.create({ title, description, categoryId, userId: req.user.id });
+      res.status(201).json(task);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
     }
-
-    const task = await Task.create({ title, description, categoryId });
-    res.status(201).json(task);
-  } catch (error) {
-    console.error(error);
-    res.status(400).json({ error: 'An error occurred while creating the task.' });
-  }
-});
+  });
 
 app.get('/tasks', async (req, res) => {
   const { categoryId } = req.query;  

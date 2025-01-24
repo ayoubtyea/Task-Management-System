@@ -1,18 +1,17 @@
 const { Sequelize, DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 const Category = require('./Category');
+const User = require('./User');
 
 
-const Task = sequelize.define('task',  {
+const Task = sequelize.define('Task',  {
     title: {
         type: DataTypes.STRING,
-        allowNull: false,
-        trim: true,
-    },
+        allowNull: false, 
+   },
     description: {
         type: DataTypes.STRING,
         allowNull: false,
-        trim: true,      
     },
     completed: {
         type: DataTypes.BOOLEAN,
@@ -22,8 +21,28 @@ const Task = sequelize.define('task',  {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
     },
-}, {timestamps: true});
+    userId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+            model: User,
+            key: 'id',
+        },
+    },
+    CategoryId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+            model: Category,
+            key: 'id',
+        },
+    },
+}, { timestamps: true });
 
-Task.belongsTo(Category, { foreignKey: 'categoryId' });
+Task.belongsTo(User);
+Task.belongsTo(Category);
+User.hasMany(Task);
+Category.hasMany(Task);
+
 
 module.exports = Task;

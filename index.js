@@ -3,9 +3,73 @@ const app = express();
 const Task = require('./models/Task');
 const Category = require('./models/Category');
 const sequelize = require('./config/database');
+const bcrypt = require('bcryptjs');
+const User = require('./models/User');
+const { generateToken, comparePasswords } = require('./auth');
 require('dotenv').config();
 
+
+
 app.use(express.json());
+
+app.post('register', async (req, res) => {
+    try {
+        const { username, email, password } = req.body;
+
+        if (!username || !email || !password) {
+            return res.status(400).json({ error: 'Username, email, and password are required'});
+        }
+
+
+
+        const existingUser = await User.findOne({ where: { email } });
+        if(existingUser) {
+            return res.status(400).json({ error: 'User with this email exists'})
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        const user = await User.create({ username, email, password: hashedPassword });
+
+        const token = generateToken(user);
+
+        res.status(201).json({ token, user: { id: user.id, username: user.username, email: user.email }});
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: 'Error registering user'});
+    }
+})
+
+
+// POST LOGIN
+app.post('/login', async (req, res) => {
+    try {
+      const { email, password } = req.body;
+  
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password are required' });
+      }
+  
+      const user = await User.findOne({ where: { email } });
+      if (!user) {
+        return res.status(400).json({ error: 'Invalid credentials' });
+      }
+  
+      const isPasswordValid = await comparePasswords(password, user.password);
+      if (!isPasswordValid) {
+        return res.status(400).json({ error: 'Invalid credentials' });
+      }
+  
+      const token = generateToken(user);
+  
+      res.status(200).json({ token, user: { id: user.id, username: user.username, email: user.email } });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Error logging in user' });
+    }
+  });
+  
+
 
 app.get('/', (req, res) => {
   res.send('Welcome to the Task Manager API!');
